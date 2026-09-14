@@ -15,15 +15,34 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection
-mongoose
-    .connect(process.env.MONGO_URI)
-    .then(() => {
-        console.log('MongoDB Connected Successfully! 🚀');
-    })
-    .catch((err) => {
-        console.error('Database connection failed:', err.message);
+// Serverless DB Connection Handler
+let isConnected = false;
+
+const connectToDatabase = async () => {
+  if (isConnected && mongoose.connection.readyState === 1) {
+    return;
+  }
+  try {
+    const db = await mongoose.connect(process.env.MONGO_URI, {
+      bufferCommands: false, // Timeout වෙන එක නවත්වයි
     });
+    isConnected = db.connections[0].readyState === 1;
+    console.log('MongoDB Connected Successfully! 🚀');
+  } catch (err) {
+    console.error('Database connection failed:', err.message);
+    throw err;
+  }
+};
+
+// Request එකක් එන සෑම අවස්ථාවකම DB Connection එක Check කරන Middleware එක
+app.use(async (req, res, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (error) {
+    res.status(500).json({ message: 'Database connection error', error: error.message });
+  }
+});
 
 // Test route
 app.get('/', (req, res) => {
