@@ -1,27 +1,25 @@
 const Project = require('../models/Project');
 
-// Create Project
+// ======================================================
+// CREATE PROJECT
+// Admin / Project Manager ONLY
+// ======================================================
 const createProject = async (req, res) => {
     try {
         const { title, description, startDate, endDate, members } = req.body;
 
-        // Only Admin and Project Manager can create projects
         if (req.user.role !== 'Admin' && req.user.role !== 'Project Manager') {
             return res.status(403).json({
                 message: 'Access denied. Only Admin or Project Manager can create projects.'
             });
         }
 
-        // Validate required fields
         if (!title || !description) {
             return res.status(400).json({
                 message: 'Title and description are required.'
             });
         }
 
-        // IMPORTANT:
-        // createdBy comes from logged-in user's JWT,
-        // NOT from the request body.
         const project = new Project({
             title,
             description,
@@ -33,9 +31,13 @@ const createProject = async (req, res) => {
 
         const savedProject = await project.save();
 
+        const populatedProject = await Project.findById(savedProject._id)
+            .populate('createdBy', 'name email role')
+            .populate('members', 'name email role');
+
         res.status(201).json({
             message: 'Project created successfully',
-            project: savedProject
+            project: populatedProject
         });
 
     } catch (error) {
@@ -49,10 +51,13 @@ const createProject = async (req, res) => {
 };
 
 
-// Get Projects
+// ======================================================
+// GET PROJECTS
+// Admin / PM -> All projects
+// Developer -> Assigned projects only
+// ======================================================
 const getProjects = async (req, res) => {
     try {
-        // Admin / Project Manager can see all projects
         if (req.user.role === 'Admin' || req.user.role === 'Project Manager') {
 
             const projects = await Project.find()
@@ -63,7 +68,6 @@ const getProjects = async (req, res) => {
             return res.status(200).json(projects);
         }
 
-        // Developer can see projects where they are a member
         if (req.user.role === 'Developer') {
 
             const projects = await Project.find({
@@ -91,7 +95,9 @@ const getProjects = async (req, res) => {
 };
 
 
-// Get Single Project
+// ======================================================
+// GET SINGLE PROJECT
+// ======================================================
 const getProjectById = async (req, res) => {
     try {
         const project = await Project.findById(req.params.id)
@@ -104,7 +110,6 @@ const getProjectById = async (req, res) => {
             });
         }
 
-        // Admin / PM can access any project
         if (
             req.user.role === 'Admin' ||
             req.user.role === 'Project Manager'
@@ -112,7 +117,6 @@ const getProjectById = async (req, res) => {
             return res.status(200).json(project);
         }
 
-        // Developer can only access projects they belong to
         const isMember = project.members.some(
             member => member._id.toString() === req.user.id
         );
@@ -136,10 +140,12 @@ const getProjectById = async (req, res) => {
 };
 
 
-// Update Project
+// ======================================================
+// UPDATE PROJECT
+// Admin / Project Manager ONLY
+// ======================================================
 const updateProject = async (req, res) => {
     try {
-        // Only Admin / PM
         if (
             req.user.role !== 'Admin' &&
             req.user.role !== 'Project Manager'
@@ -159,31 +165,21 @@ const updateProject = async (req, res) => {
             });
         }
 
-        if (title !== undefined) {
-            project.title = title;
-        }
+        if (title !== undefined) project.title = title;
+        if (description !== undefined) project.description = description;
+        if (startDate !== undefined) project.startDate = startDate;
+        if (endDate !== undefined) project.endDate = endDate;
+        if (members !== undefined) project.members = members;
 
-        if (description !== undefined) {
-            project.description = description;
-        }
+        const savedProject = await project.save();
 
-        if (startDate !== undefined) {
-            project.startDate = startDate;
-        }
-
-        if (endDate !== undefined) {
-            project.endDate = endDate;
-        }
-
-        if (members !== undefined) {
-            project.members = members;
-        }
-
-        const updatedProject = await project.save();
+        const populatedProject = await Project.findById(savedProject._id)
+            .populate('createdBy', 'name email role')
+            .populate('members', 'name email role');
 
         res.status(200).json({
             message: 'Project updated successfully',
-            project: updatedProject
+            project: populatedProject
         });
 
     } catch (error) {
@@ -197,10 +193,12 @@ const updateProject = async (req, res) => {
 };
 
 
-// Delete Project
+// ======================================================
+// DELETE PROJECT
+// Admin / Project Manager ONLY
+// ======================================================
 const deleteProject = async (req, res) => {
     try {
-        // Only Admin / PM
         if (
             req.user.role !== 'Admin' &&
             req.user.role !== 'Project Manager'

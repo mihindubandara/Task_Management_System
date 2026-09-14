@@ -65,8 +65,8 @@ const createTask = async (req, res) => {
 
 // ======================================================
 // GET TASKS
-// Admin / PM → All tasks
-// Developer → Assigned tasks only
+// Admin / PM -> All tasks
+// Developer -> Assigned tasks only
 // ======================================================
 const getTasks = async (req, res) => {
     try {
@@ -159,8 +159,8 @@ const getTaskById = async (req, res) => {
 
 // ======================================================
 // UPDATE TASK
-// Admin / PM → Can update task details
-// Developer → Can update STATUS only on own task
+// Admin / PM -> Can update task details
+// Developer -> Can update STATUS only on own task
 // ======================================================
 const updateTask = async (req, res) => {
     try {
@@ -172,9 +172,7 @@ const updateTask = async (req, res) => {
             });
         }
 
-        // ==========================================
-        // ADMIN / PROJECT MANAGER
-        // ==========================================
+        // Admin / Project Manager
         if (
             req.user.role === 'Admin' ||
             req.user.role === 'Project Manager'
@@ -197,22 +195,21 @@ const updateTask = async (req, res) => {
             if (projectId !== undefined) task.projectId = projectId;
             if (assignedTo !== undefined) task.assignedTo = assignedTo;
 
-            const updatedTask = await task.save();
+            const savedTask = await task.save();
+
+            const populatedTask = await Task.findById(savedTask._id)
+                .populate('assignedTo', 'name email role')
+                .populate('projectId', 'title');
 
             return res.status(200).json({
                 message: 'Task updated successfully',
-                task: updatedTask
+                task: populatedTask
             });
         }
 
-
-        // ==========================================
-        // DEVELOPER
-        // STATUS ONLY
-        // ==========================================
+        // Developer (Status Only)
         if (req.user.role === 'Developer') {
 
-            // Check ownership
             if (
                 !task.assignedTo ||
                 task.assignedTo.toString() !== req.user.id
@@ -222,7 +219,6 @@ const updateTask = async (req, res) => {
                 });
             }
 
-            // Developer can ONLY update status
             if (
                 Object.keys(req.body).some(
                     key => key !== 'status'
@@ -241,14 +237,17 @@ const updateTask = async (req, res) => {
 
             task.status = req.body.status;
 
-            const updatedTask = await task.save();
+            const savedTask = await task.save();
+
+            const populatedTask = await Task.findById(savedTask._id)
+                .populate('assignedTo', 'name email role')
+                .populate('projectId', 'title');
 
             return res.status(200).json({
                 message: 'Task status updated successfully',
-                task: updatedTask
+                task: populatedTask
             });
         }
-
 
         return res.status(403).json({
             message: 'Access denied.'
