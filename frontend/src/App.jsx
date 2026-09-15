@@ -8,13 +8,12 @@ import Chat from './pages/Chat';
 import './App.css';
 
 function App() {
-    const [user, setUser] = useState(() => {
-        const savedUser = localStorage.getItem('user');
+    const [user, setUser] = useState(null);
 
-        return savedUser
-            ? JSON.parse(savedUser)
-            : null;
-    });
+    useEffect(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+    }, []);
 
     const [currentPage, setCurrentPage] = useState('dashboard');
     const [sidebarOpen, setSidebarOpen] = useState(false);
